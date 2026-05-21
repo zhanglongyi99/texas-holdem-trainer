@@ -13,81 +13,133 @@
           <p class="eyebrow">Texas Hold'em Trainer</p>
           <h1>德州扑克模拟练习器</h1>
         </div>
-        <div class="session-stats" aria-label="本轮训练统计">
-          <span><strong id="handsPlayed">0</strong> 手牌</span>
-          <span><strong id="heroStackTop">2000</strong> 筹码</span>
-          <span><strong id="coachScore">--</strong> 评分</span>
-        </div>
+        <nav class="view-tabs" aria-label="主视图">
+          <button class="tab active" data-view="play" type="button">牌桌</button>
+          <button class="tab" data-view="review" type="button">本手复盘</button>
+          <button class="tab" data-view="stats" type="button">数据统计</button>
+        </nav>
       </header>
 
-      <section class="coach-strip" aria-label="教练提示">
-        <div class="coach-avatar">GTO</div>
-        <div>
-          <p class="coach-title">新手教练</p>
-          <p id="coachHint">点击“开始新手牌”进入练习。每次轮到你行动时，我会给出简短建议。</p>
+      <section id="playView" class="view active" aria-label="牌桌对局">
+        <section class="play-layout">
+          <section class="table-zone" aria-label="牌桌">
+            <div class="table-felt">
+              <div class="community">
+                <span class="table-label">公共牌</span>
+                <div id="boardCards" class="cards board-cards"></div>
+              </div>
+              <div class="pot-display">
+                <span>底池</span>
+                <strong id="potAmount">0</strong>
+              </div>
+              <div id="players" class="players"></div>
+            </div>
+            <div class="hero-panel">
+              <div>
+                <span class="table-label">你的手牌</span>
+                <div id="heroCards" class="cards"></div>
+              </div>
+              <div class="hero-stack">
+                <span id="stageLabel">等待开始</span>
+                <strong id="heroStack">2000</strong>
+              </div>
+            </div>
+          </section>
+
+          <aside class="control-panel" aria-label="对局控制">
+            <div class="round-card">
+              <div class="section-head">
+                <h2>对局</h2>
+                <button id="newHandBtn" class="primary-btn" type="button">开始新手牌</button>
+              </div>
+              <div class="status-grid">
+                <div>
+                  <span>本地手数</span>
+                  <strong id="handsPlayed">0</strong>
+                </div>
+                <div>
+                  <span>本手位置</span>
+                  <strong id="heroPosition">--</strong>
+                </div>
+                <div>
+                  <span>当前需跟</span>
+                  <strong id="toCallAmount">0</strong>
+                </div>
+                <div>
+                  <span>有效后手</span>
+                  <strong id="effectiveStack">--</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="round-card">
+              <div class="section-head">
+                <h2>行动</h2>
+                <span id="turnBadge" class="pill">等待发牌</span>
+              </div>
+              <div class="action-grid">
+                <button id="foldBtn" class="action-btn" type="button" disabled>弃牌</button>
+                <button id="checkCallBtn" class="action-btn" type="button" disabled>看牌 / 跟注</button>
+                <button id="raiseBtn" class="action-btn accent" type="button" disabled>加注</button>
+              </div>
+              <label class="raise-control" for="raiseSize">
+                <span>加注尺度</span>
+                <input id="raiseSize" type="range" min="2" max="5" value="3" step="0.5" />
+                <strong id="raiseSizeLabel">3x</strong>
+              </label>
+              <p class="quiet-note">对局中不展示策略建议。打完这一手后，在复盘页看每个决策点。</p>
+            </div>
+
+            <div id="resultPanel" class="round-card result-panel hidden">
+              <h2>本手结束</h2>
+              <p id="resultText">等待结果</p>
+              <div class="result-actions">
+                <button id="reviewHandBtn" class="primary-btn" type="button">查看复盘</button>
+                <button id="nextHandBtn" class="ghost-btn" type="button">下一手</button>
+              </div>
+            </div>
+
+            <div class="round-card log-card">
+              <div class="section-head">
+                <h2>牌局记录</h2>
+                <button id="copyLogBtn" class="ghost-btn" type="button">导出</button>
+              </div>
+              <ol id="handLog" class="hand-log"></ol>
+            </div>
+          </aside>
+        </section>
+      </section>
+
+      <section id="reviewView" class="view" aria-label="本手复盘">
+        <div class="review-layout">
+          <section class="round-card">
+            <div class="section-head">
+              <h2>本手摘要</h2>
+              <button class="ghost-btn" data-view-jump="play" type="button">回到牌桌</button>
+            </div>
+            <div id="reviewSummary" class="review-summary empty-state">还没有完成的手牌。先打一手，再来看复盘。</div>
+          </section>
+          <section class="round-card">
+            <h2>关键决策</h2>
+            <div id="decisionReview" class="decision-list empty-state">等待你的行动记录。</div>
+          </section>
         </div>
       </section>
 
-      <section class="workspace">
-        <section class="table-zone" aria-label="牌桌">
-          <div class="table-felt">
-            <div class="community">
-              <span class="label">公共牌</span>
-              <div id="boardCards" class="cards board-cards"></div>
-            </div>
-            <div class="pot-display">
-              <span>底池</span>
-              <strong id="potAmount">0</strong>
-            </div>
-            <div id="players" class="players"></div>
-          </div>
-
-          <div class="hero-panel">
-            <div>
-              <span class="label">你的手牌</span>
-              <div id="heroCards" class="cards"></div>
-            </div>
-            <div class="hero-meta">
-              <span id="stageLabel">等待开始</span>
-              <strong id="heroStack">2000</strong>
-            </div>
-          </div>
-        </section>
-
-        <aside class="side-panel" aria-label="训练控制与复盘">
-          <div class="control-section">
+      <section id="statsView" class="view" aria-label="数据统计">
+        <div class="stats-layout">
+          <section class="round-card">
             <div class="section-head">
-              <h2>行动</h2>
-              <button id="newHandBtn" class="primary-btn" type="button">开始新手牌</button>
+              <h2>训练数据</h2>
+              <button id="resetStatsBtn" class="ghost-btn danger" type="button">重置统计</button>
             </div>
-            <div class="action-grid">
-              <button id="foldBtn" class="action-btn" type="button" disabled>弃牌</button>
-              <button id="checkCallBtn" class="action-btn" type="button" disabled>看牌 / 跟注</button>
-              <button id="raiseBtn" class="action-btn accent" type="button" disabled>加注</button>
-            </div>
-            <label class="raise-control" for="raiseSize">
-              <span>加注尺度</span>
-              <input id="raiseSize" type="range" min="2" max="6" value="3" step="1" />
-              <strong id="raiseSizeLabel">3x</strong>
-            </label>
-          </div>
-
-          <div class="control-section">
-            <div class="section-head">
-              <h2>复盘教练</h2>
-              <span id="decisionQuality" class="pill">未行动</span>
-            </div>
-            <div id="reviewCards" class="review-list"></div>
-          </div>
-
-          <div class="control-section log-section">
-            <div class="section-head">
-              <h2>牌局记录</h2>
-              <button id="copyLogBtn" class="ghost-btn" type="button">导出</button>
-            </div>
-            <ol id="handLog" class="hand-log"></ol>
-          </div>
-        </aside>
+            <div id="statsGrid" class="stats-grid"></div>
+          </section>
+          <section class="round-card">
+            <h2>问题诊断</h2>
+            <div id="leakReport" class="leak-list"></div>
+          </section>
+        </div>
       </section>
     </main>
 
