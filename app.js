@@ -139,6 +139,7 @@ function createPlayers() {
     ...player,
     seat,
     stack: STARTING_STACK,
+    committed: 0,
     cards: [],
     bet: 0,
     folded: false,
@@ -217,7 +218,11 @@ function runUntilHero() {
     finishHand(active[0], "其他玩家全部弃牌");
     return;
   }
-  if (decisionPlayers().length <= 1 || streetComplete()) {
+  if (shouldRunOutToShowdown()) {
+    runOutToShowdown();
+    return;
+  }
+  if (streetComplete()) {
     advanceStreet();
     return;
   }
@@ -247,9 +252,22 @@ function runUntilHero() {
 }
 
 function streetComplete() {
-  return decisionPlayers().every((player) => {
+  const players = decisionPlayers();
+  if (!players.length) return false;
+  return players.every((player) => {
     return player.acted && (player.bet === state.currentBet || player.stack === 0);
   });
+}
+
+function shouldRunOutToShowdown() {
+  const actors = decisionPlayers();
+  if (activePlayers().length <= 1) return false;
+  if (actors.length === 0) return true;
+  if (actors.length === 1) {
+    const actor = actors[0];
+    return state.currentBet === 0 || actor.bet === state.currentBet;
+  }
+  return false;
 }
 
 function canAct(player) {
@@ -294,6 +312,17 @@ function advanceStreet() {
   state.activeIndex = nextActionIndex(state.dealer);
   render();
   window.setTimeout(runUntilHero, 420);
+}
+
+function runOutToShowdown() {
+  while (state.board.length < 5) {
+    state.board.push(state.deck.pop());
+    if (state.board.length === 3) log("发出翻牌");
+    if (state.board.length === 4) log("发出转牌");
+    if (state.board.length === 5) log("发出河牌");
+  }
+  log("所有未弃牌玩家已全下，直接摊牌");
+  showdown();
 }
 
 function performBotAction(player) {
@@ -491,21 +520,63 @@ function compatibleAction(actual, best) {
 function showdown() {
   state.stageIndex = 4;
   const contenders = activePlayers();
-  let winner = contenders[0];
   for (const player of contenders) {
     player.handRank = evaluateSeven([...player.cards, ...state.board]);
-    if (compareRanks(player.handRank, winner.handRank || { category: -1, tiebreakers: [] }) > 0) winner = player;
   }
+  const result = distributeShowdownPots();
   state.hand.wentShowdown = !hero().folded;
-  state.hand.wonShowdown = winner.id === "hero";
-  finishHand(winner, `${winner.name} 以 ${winner.handRank.name} 赢下摊牌`);
+  state.hand.wonShowdown = result.heroWon;
+  finishHand(result.primaryWinner, result.summary, { skipPotAward: true });
 }
 
-function finishHand(winner, reason) {
-  const player = winner;
-  player.stack += state.pot;
-  log(`${reason}，获得 ${state.pot}`);
+function distributeShowdownPots() {
+  const awards = new Map();
+  const summaries = [];
+  const levels = [...new Set(state.players.map((player) => player.committed).filter((amount) => amount > 0))].sort((a, b) => a - b);
+  let previous = 0;
+
+  for (const level of levels) {
+    const participants = state.players.filter((player) => player.committed >= level);
+    const eligible = participants.filter((player) => !player.folded);
+    const amount = (level - previous) * participants.length;
+    previous = level;
+    if (!amount || !eligible.length) continue;
+
+    const best = eligible.map((player) => player.handRank).sort(compareRanks).at(-1);
+    const winners = eligible.filter((player) => compareRanks(player.handRank, best) === 0);
+    const share = Math.floor(amount / winners.length);
+    let remainder = amount - share * winners.length;
+    for (const winner of winners) {
+      const paid = share + (remainder > 0 ? 1 : 0);
+      remainder -= remainder > 0 ? 1 : 0;
+      winner.stack += paid;
+      awards.set(winner.id, (awards.get(winner.id) || 0) + paid);
+    }
+  }
+
+  for (const player of state.players) {
+    const amount = awards.get(player.id) || 0;
+    if (amount > 0) summaries.push(`${player.name} 以 ${player.handRank.name} 赢得 ${amount}`);
+  }
+
   state.pot = 0;
+  const primaryWinner = [...state.players].sort((a, b) => (awards.get(b.id) || 0) - (awards.get(a.id) || 0))[0];
+  return {
+    primaryWinner,
+    heroWon: (awards.get("hero") || 0) > 0,
+    summary: summaries.join("；") || "摊牌无人获得底池",
+  };
+}
+
+function finishHand(winner, reason, options = {}) {
+  const player = winner;
+  if (!options.skipPotAward) {
+    player.stack += state.pot;
+    log(`${reason}，获得 ${state.pot}`);
+    state.pot = 0;
+  } else {
+    log(reason);
+  }
   state.handActive = false;
   state.waitingForHero = false;
   state.hand.heroCards = hero().cards.map(cardToText);
@@ -546,6 +617,7 @@ function commitChips(player, amount) {
   const paid = Math.min(player.stack, Math.max(0, Math.round(amount)));
   player.stack -= paid;
   player.bet += paid;
+  player.committed += paid;
   state.pot += paid;
   if (player.stack === 0) player.allIn = true;
   return paid;
