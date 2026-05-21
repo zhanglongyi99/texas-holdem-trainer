@@ -28,6 +28,59 @@ export function shouldRunOutToShowdown(players, currentBet) {
   return false;
 }
 
+export function minRaiseTo(currentBet, lastFullRaise, bigBlind) {
+  if (currentBet <= 0) return bigBlind;
+  return currentBet + Math.max(lastFullRaise, bigBlind);
+}
+
+export function applyBetOrRaise({ player, targetBet, currentBet, lastFullRaise, bigBlind }) {
+  const previousBet = player.bet;
+  const legalFullRaiseTo = minRaiseTo(currentBet, lastFullRaise, bigBlind);
+  const cappedTarget = Math.min(Math.max(targetBet, currentBet || bigBlind), previousBet + player.stack);
+  const paid = commitChips(player, cappedTarget - previousBet);
+  const raiseSize = player.bet - currentBet;
+  const isAggressive = player.bet > currentBet;
+  const isFullRaise = isAggressive && player.bet >= legalFullRaiseTo;
+  const nextCurrentBet = Math.max(currentBet, player.bet);
+  const nextLastFullRaise = isFullRaise ? raiseSize : lastFullRaise;
+
+  return {
+    paid,
+    isAggressive,
+    isFullRaise,
+    raiseSize,
+    nextCurrentBet,
+    nextLastFullRaise,
+  };
+}
+
+export function commitChips(player, amount) {
+  const paid = Math.min(player.stack, Math.max(0, Math.round(amount)));
+  player.stack -= paid;
+  player.bet += paid;
+  player.committed += paid;
+  if (player.stack === 0) player.allIn = true;
+  return paid;
+}
+
+export function nextSeat(from, seats, offset = 1) {
+  return (from + offset) % seats;
+}
+
+export function firstPreflopActor(dealer, seats) {
+  if (seats === 2) return dealer;
+  return nextSeat(dealer, seats, 3);
+}
+
+export function firstPostflopActor(dealer, players) {
+  let index = nextSeat(dealer, players.length);
+  for (let tries = 0; tries < players.length; tries += 1) {
+    if (canAct(players[index])) return index;
+    index = nextSeat(index, players.length);
+  }
+  return index;
+}
+
 export function evaluateSeven(cards) {
   if (cards.length < 5) {
     return {

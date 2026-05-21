@@ -1,10 +1,14 @@
 import {
   activePlayers as getActivePlayers,
+  applyBetOrRaise,
   canAct as canPlayerAct,
   compareRanks,
+  commitChips as commitPlayerChips,
   decisionPlayers as getDecisionPlayers,
   distributeShowdownPots as settleShowdownPots,
   evaluateSeven,
+  firstPostflopActor,
+  firstPreflopActor,
   isStreetComplete,
   shouldRunOutToShowdown as shouldRunOut,
 } from "./rules.js";
@@ -99,6 +103,7 @@ let state = {
   stageIndex: 0,
   pot: 0,
   currentBet: 0,
+  lastFullRaise: BIG_BLIND,
   activeIndex: 0,
   handActive: false,
   waitingForHero: false,
@@ -174,6 +179,7 @@ function startHand() {
   state.stageIndex = 0;
   state.pot = 0;
   state.currentBet = BIG_BLIND;
+  state.lastFullRaise = BIG_BLIND;
   state.preflopRaiseCount = 0;
   state.preflopAggressor = null;
   state.streetAggressor = null;
@@ -187,7 +193,7 @@ function startHand() {
 
   postBlind(nextSeat(state.dealer), SMALL_BLIND, "小盲");
   postBlind(nextSeat(state.dealer, 2), BIG_BLIND, "大盲");
-  state.activeIndex = nextSeat(state.dealer, 3);
+  state.activeIndex = firstPreflopActor(state.dealer, state.players.length);
   log(`新手牌开始，庄位：${state.players[state.dealer].name}`);
   switchView("play");
   render();
@@ -302,6 +308,7 @@ function advanceStreet() {
   }
 
   state.currentBet = 0;
+  state.lastFullRaise = BIG_BLIND;
   state.streetAggressor = null;
   state.streetBetCount = 0;
   state.flopCbetBy = STAGES[state.stageIndex] === "flop" ? null : state.flopCbetBy;
@@ -309,7 +316,7 @@ function advanceStreet() {
     player.bet = 0;
     player.acted = false;
   }
-  state.activeIndex = nextActionIndex(state.dealer);
+  state.activeIndex = firstPostflopActor(state.dealer, state.players);
   render();
   window.setTimeout(runUntilHero, 420);
 }
@@ -409,14 +416,20 @@ function applyAction(player, type, target = 0) {
   }
   if (type === "raise") {
     const oldBet = state.currentBet;
-    const minTarget = oldBet ? oldBet + BIG_BLIND : BIG_BLIND;
-    const cappedTarget = Math.min(Math.max(target, minTarget), player.bet + player.stack);
-    commitChips(player, cappedTarget - player.bet);
-    state.currentBet = Math.max(state.currentBet, player.bet);
-    resetActedAfterRaise(player);
+    const result = applyBetOrRaise({
+      player,
+      targetBet: target,
+      currentBet: state.currentBet,
+      lastFullRaise: state.lastFullRaise,
+      bigBlind: BIG_BLIND,
+    });
+    state.currentBet = result.nextCurrentBet;
+    state.lastFullRaise = result.nextLastFullRaise;
+    if (result.isFullRaise) resetActedAfterRaise(player);
+    else player.acted = true;
     player.lastAction = oldBet ? `加注到 ${player.bet}` : `下注 ${player.bet}`;
     log(`${player.name} ${oldBet ? `加注到 ${player.bet}` : `下注 ${player.bet}`}`);
-    markAggression(player, oldBet);
+    if (result.isAggressive) markAggression(player, oldBet, result.isFullRaise);
   }
 }
 
@@ -462,8 +475,8 @@ function heroAction(type) {
   window.setTimeout(runUntilHero, 360);
 }
 
-function markAggression(player, oldBet) {
-  if (currentStage() === "preflop" && player.bet > BIG_BLIND) {
+function markAggression(player, oldBet, isFullRaise = true) {
+  if (currentStage() === "preflop" && player.bet > BIG_BLIND && isFullRaise) {
     state.preflopRaiseCount += 1;
     state.preflopAggressor = player.id;
   }
@@ -582,12 +595,8 @@ function applyHandToStats() {
 }
 
 function commitChips(player, amount) {
-  const paid = Math.min(player.stack, Math.max(0, Math.round(amount)));
-  player.stack -= paid;
-  player.bet += paid;
-  player.committed += paid;
+  const paid = commitPlayerChips(player, amount);
   state.pot += paid;
-  if (player.stack === 0) player.allIn = true;
   return paid;
 }
 

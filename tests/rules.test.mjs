@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import {
   activePlayers,
+  applyBetOrRaise,
   canAct,
+  commitChips,
   compareRanks,
   decisionPlayers,
   distributeShowdownPots,
   evaluateSeven,
+  firstPostflopActor,
+  firstPreflopActor,
   isStreetComplete,
+  minRaiseTo,
   shouldRunOutToShowdown,
 } from "../rules.js";
 
@@ -88,6 +93,47 @@ test("runs out when all unresolved betting decisions are closed", () => {
   assert.equal(shouldRunOutToShowdown(oneActorMatched, 200), true);
 });
 
+test("computes minimum raise target from the last full raise", () => {
+  assert.equal(minRaiseTo(40, 40, 40), 80);
+  assert.equal(minRaiseTo(120, 80, 40), 200);
+  assert.equal(minRaiseTo(0, 40, 40), 40);
+});
+
+test("full raises reopen action and update the last full raise size", () => {
+  const raiser = player({ id: "raiser", stack: 1000, bet: 40 });
+  const result = applyBetOrRaise({
+    player: raiser,
+    targetBet: 120,
+    currentBet: 40,
+    lastFullRaise: 40,
+    bigBlind: 40,
+  });
+  assert.equal(raiser.bet, 120);
+  assert.equal(raiser.stack, 920);
+  assert.equal(raiser.committed, 80);
+  assert.equal(result.isAggressive, true);
+  assert.equal(result.isFullRaise, true);
+  assert.equal(result.nextCurrentBet, 120);
+  assert.equal(result.nextLastFullRaise, 80);
+});
+
+test("short all-in raises the current bet but does not count as a full raise", () => {
+  const short = player({ id: "short", stack: 50, bet: 100 });
+  const result = applyBetOrRaise({
+    player: short,
+    targetBet: 200,
+    currentBet: 120,
+    lastFullRaise: 80,
+    bigBlind: 40,
+  });
+  assert.equal(short.bet, 150);
+  assert.equal(short.allIn, true);
+  assert.equal(result.isAggressive, true);
+  assert.equal(result.isFullRaise, false);
+  assert.equal(result.nextCurrentBet, 150);
+  assert.equal(result.nextLastFullRaise, 80);
+});
+
 test("evaluates wheel straight, flush, full house, and kicker comparisons", () => {
   const wheel = evaluateSeven([card("A", "s"), card("2", "h"), card("3", "d"), card("4", "c"), card("5", "s"), card("9", "h"), card("K", "d")]);
   assert.equal(wheel.name, "顺子");
@@ -124,6 +170,47 @@ test("includes folded contributions in pots but excludes folded players from win
   const result = distributeShowdownPots(players);
   assert.equal(result.awards.get("villain"), 300);
   assert.equal(result.awards.has("folded"), false);
+});
+
+test("splits tied pots evenly with odd chip remainder assigned deterministically", () => {
+  const tiedRank = { category: 1, tiebreakers: [14, 13, 12, 9], name: "一对" };
+  const players = [
+    player({ id: "hero", committed: 101, handRank: tiedRank }),
+    player({ id: "villain", committed: 101, handRank: tiedRank }),
+  ];
+  const result = distributeShowdownPots(players);
+  assert.equal(result.awards.get("hero"), 101);
+  assert.equal(result.awards.get("villain"), 101);
+
+  players[0].committed = 101;
+  players[1].committed = 100;
+  const odd = distributeShowdownPots(players);
+  assert.equal(odd.awards.get("hero"), 101);
+  assert.equal(odd.awards.get("villain"), 100);
+});
+
+test("blind posting updates bet, committed chips, stack, and all-in state", () => {
+  const blind = player({ id: "blind", stack: 20 });
+  const paid = commitChips(blind, 40);
+  assert.equal(paid, 20);
+  assert.equal(blind.bet, 20);
+  assert.equal(blind.committed, 20);
+  assert.equal(blind.stack, 0);
+  assert.equal(blind.allIn, true);
+});
+
+test("computes preflop and postflop first actor by button rules", () => {
+  assert.equal(firstPreflopActor(0, 6), 3);
+  assert.equal(firstPreflopActor(4, 6), 1);
+  assert.equal(firstPreflopActor(0, 2), 0);
+
+  const players = [
+    player({ id: "btn" }),
+    player({ id: "sb", folded: true }),
+    player({ id: "bb" }),
+    player({ id: "utg" }),
+  ];
+  assert.equal(firstPostflopActor(0, players), 2);
 });
 
 console.log("all rules tests passed");
