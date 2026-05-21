@@ -34,6 +34,9 @@ export function minRaiseTo(currentBet, lastFullRaise, bigBlind) {
 }
 
 export function applyBetOrRaise({ player, targetBet, currentBet, lastFullRaise, bigBlind }) {
+  if (!canAct(player)) {
+    throw new Error("Player cannot bet or raise");
+  }
   const previousBet = player.bet;
   const legalFullRaiseTo = minRaiseTo(currentBet, lastFullRaise, bigBlind);
   const cappedTarget = Math.min(Math.max(targetBet, currentBet || bigBlind), previousBet + player.stack);
@@ -55,6 +58,9 @@ export function applyBetOrRaise({ player, targetBet, currentBet, lastFullRaise, 
 }
 
 export function commitChips(player, amount) {
+  if (amount < 0) {
+    throw new Error("Cannot commit a negative chip amount");
+  }
   const paid = Math.min(player.stack, Math.max(0, Math.round(amount)));
   player.stack -= paid;
   player.bet += paid;
@@ -79,6 +85,21 @@ export function firstPostflopActor(dealer, players) {
     index = nextSeat(index, players.length);
   }
   return index;
+}
+
+export function blindIndexes(dealer, seats) {
+  if (seats < 2) throw new Error("At least two seats are required");
+  if (seats === 2) {
+    return { smallBlind: dealer, bigBlind: nextSeat(dealer, seats) };
+  }
+  return {
+    smallBlind: nextSeat(dealer, seats),
+    bigBlind: nextSeat(dealer, seats, 2),
+  };
+}
+
+export function totalChips(players, pot = 0) {
+  return players.reduce((sum, player) => sum + player.stack, pot);
 }
 
 export function evaluateSeven(cards) {
@@ -111,9 +132,16 @@ export function distributeShowdownPots(players) {
   for (const level of levels) {
     const participants = players.filter((player) => player.committed >= level);
     const eligible = participants.filter((player) => !player.folded);
-    const amount = (level - previous) * participants.length;
+    const contribution = level - previous;
+    const amount = contribution * participants.length;
     previous = level;
-    if (!amount || !eligible.length) continue;
+    if (!amount) continue;
+    if (!eligible.length) {
+      for (const participant of participants) {
+        awards.set(participant.id, (awards.get(participant.id) || 0) + contribution);
+      }
+      continue;
+    }
 
     const best = eligible.map((player) => player.handRank).sort(compareRanks).at(-1);
     const winners = eligible.filter((player) => compareRanks(player.handRank, best) === 0);

@@ -1,6 +1,7 @@
 import {
   activePlayers as getActivePlayers,
   applyBetOrRaise,
+  blindIndexes,
   canAct as canPlayerAct,
   compareRanks,
   commitChips as commitPlayerChips,
@@ -191,8 +192,9 @@ function startHand() {
   state.lastReview = null;
   state.hand = createHandMetrics();
 
-  postBlind(nextSeat(state.dealer), SMALL_BLIND, "小盲");
-  postBlind(nextSeat(state.dealer, 2), BIG_BLIND, "大盲");
+  const blinds = blindIndexes(state.dealer, state.players.length);
+  postBlind(blinds.smallBlind, SMALL_BLIND, "小盲");
+  postBlind(blinds.bigBlind, BIG_BLIND, "大盲");
   state.activeIndex = firstPreflopActor(state.dealer, state.players.length);
   log(`新手牌开始，庄位：${state.players[state.dealer].name}`);
   switchView("play");

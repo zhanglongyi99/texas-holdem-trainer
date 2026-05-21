@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   activePlayers,
   applyBetOrRaise,
+  blindIndexes,
   canAct,
   commitChips,
   compareRanks,
@@ -13,6 +14,7 @@ import {
   isStreetComplete,
   minRaiseTo,
   shouldRunOutToShowdown,
+  totalChips,
 } from "../rules.js";
 
 const card = (rank, suit = "s") => ({ id: String(rank), value: rankValue(rank), suit });
@@ -211,6 +213,94 @@ test("computes preflop and postflop first actor by button rules", () => {
     player({ id: "utg" }),
   ];
   assert.equal(firstPostflopActor(0, players), 2);
+});
+
+test("computes heads-up blind and action order correctly", () => {
+  assert.deepEqual(blindIndexes(0, 2), { smallBlind: 0, bigBlind: 1 });
+  assert.equal(firstPreflopActor(0, 2), 0);
+  const players = [player({ id: "btn" }), player({ id: "bb" })];
+  assert.equal(firstPostflopActor(0, players), 1);
+});
+
+test("rejects illegal chip commits and raises by inactive players", () => {
+  assert.throws(() => commitChips(player({ id: "a" }), -1), /negative/);
+  assert.throws(
+    () => applyBetOrRaise({
+      player: player({ id: "folded", folded: true }),
+      targetBet: 100,
+      currentBet: 40,
+      lastFullRaise: 40,
+      bigBlind: 40,
+    }),
+    /cannot bet or raise/i,
+  );
+});
+
+test("distributes multiple side pots across four all-in players", () => {
+  const players = [
+    player({ id: "p1", committed: 100, handRank: { category: 1, tiebreakers: [2], name: "一对" } }),
+    player({ id: "p2", committed: 200, handRank: { category: 8, tiebreakers: [14], name: "同花顺" } }),
+    player({ id: "p3", committed: 300, handRank: { category: 4, tiebreakers: [9], name: "顺子" } }),
+    player({ id: "p4", committed: 400, handRank: { category: 0, tiebreakers: [14], name: "高牌" } }),
+  ];
+  const result = distributeShowdownPots(players);
+  assert.equal(result.awards.get("p2"), 700);
+  assert.equal(result.awards.get("p3"), 200);
+  assert.equal(result.awards.get("p4"), 100);
+  assert.equal(result.awards.get("p1") || 0, 0);
+});
+
+test("conserves total chips through commits and showdown settlement", () => {
+  const players = [
+    player({ id: "hero", stack: 1000 }),
+    player({ id: "villain", stack: 1000 }),
+    player({ id: "third", stack: 1000 }),
+  ];
+  const before = totalChips(players);
+  let pot = 0;
+  pot += commitChips(players[0], 100);
+  pot += commitChips(players[1], 200);
+  pot += commitChips(players[2], 200);
+  assert.equal(totalChips(players, pot), before);
+
+  players[0].handRank = { category: 8, tiebreakers: [14], name: "同花顺" };
+  players[1].handRank = { category: 1, tiebreakers: [10], name: "一对" };
+  players[2].handRank = { category: 4, tiebreakers: [9], name: "顺子" };
+  const result = distributeShowdownPots(players);
+  for (const p of players) p.stack += result.awards.get(p.id) || 0;
+  pot = 0;
+  assert.equal(totalChips(players, pot), before);
+});
+
+test("random side-pot settlements conserve chips", () => {
+  let seed = 42;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+
+  for (let run = 0; run < 500; run += 1) {
+    const count = 2 + Math.floor(random() * 5);
+    const players = Array.from({ length: count }, (_, index) => player({
+      id: `p${index}`,
+      stack: 1000,
+      committed: 0,
+      handRank: { category: Math.floor(random() * 9), tiebreakers: [Math.floor(random() * 13) + 2], name: "测试牌力" },
+    }));
+    const before = totalChips(players);
+    let pot = 0;
+    for (const p of players) {
+      const amount = Math.floor(random() * 500);
+      pot += commitChips(p, amount);
+      p.folded = random() < 0.25;
+    }
+    if (activePlayers(players).length === 0) players[0].folded = false;
+    assert.equal(totalChips(players, pot), before);
+    const result = distributeShowdownPots(players);
+    for (const p of players) p.stack += result.awards.get(p.id) || 0;
+    pot = 0;
+    assert.equal(totalChips(players, pot), before);
+  }
 });
 
 console.log("all rules tests passed");
