@@ -1,0 +1,18 @@
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+
+# Dependency/build folders for future iterations
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>德州扑克模拟练习器</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Texas Hold'em Trainer</p>
+          <h1>德州扑克模拟练习器</h1>
+        </div>
+        <div class="session-stats" aria-label="本轮训练统计">
+          <span><strong id="handsPlayed">0</strong> 手牌</span>
+          <span><strong id="heroStackTop">2000</strong> 筹码</span>
+          <span><strong id="coachScore">--</strong> 评分</span>
+        </div>
+      </header>
+
+      <section class="coach-strip" aria-label="教练提示">
+        <div class="coach-avatar">GTO</div>
+        <div>
+          <p class="coach-title">新手教练</p>
+          <p id="coachHint">点击“开始新手牌”进入练习。每次轮到你行动时，我会给出简短建议。</p>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <section class="table-zone" aria-label="牌桌">
+          <div class="table-felt">
+            <div class="community">
+              <span class="label">公共牌</span>
+              <div id="boardCards" class="cards board-cards"></div>
+            </div>
+            <div class="pot-display">
+              <span>底池</span>
+              <strong id="potAmount">0</strong>
+            </div>
+            <div id="players" class="players"></div>
+          </div>
+
+          <div class="hero-panel">
+            <div>
+              <span class="label">你的手牌</span>
+              <div id="heroCards" class="cards"></div>
+            </div>
+            <div class="hero-meta">
+              <span id="stageLabel">等待开始</span>
+              <strong id="heroStack">2000</strong>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side-panel" aria-label="训练控制与复盘">
+          <div class="control-section">
+            <div class="section-head">
+              <h2>行动</h2>
+              <button id="newHandBtn" class="primary-btn" type="button">开始新手牌</button>
+            </div>
+            <div class="action-grid">
+              <button id="foldBtn" class="action-btn" type="button" disabled>弃牌</button>
+              <button id="checkCallBtn" class="action-btn" type="button" disabled>看牌 / 跟注</button>
+              <button id="raiseBtn" class="action-btn accent" type="button" disabled>加注</button>
+            </div>
+            <label class="raise-control" for="raiseSize">
+              <span>加注尺度</span>
+              <input id="raiseSize" type="range" min="2" max="6" value="3" step="1" />
+              <strong id="raiseSizeLabel">3x</strong>
+            </label>
+          </div>
+
+          <div class="control-section">
+            <div class="section-head">
+              <h2>复盘教练</h2>
+              <span id="decisionQuality" class="pill">未行动</span>
+            </div>
+            <div id="reviewCards" class="review-list"></div>
+          </div>
+
+          <div class="control-section log-section">
+            <div class="section-head">
+              <h2>牌局记录</h2>
+              <button id="copyLogBtn" class="ghost-btn" type="button">导出</button>
+            </div>
+            <ol id="handLog" class="hand-log"></ol>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
