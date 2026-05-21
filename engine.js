@@ -9,6 +9,7 @@ import {
   firstPostflopActor,
   firstPreflopActor,
   isStreetComplete,
+  minRaiseTo,
   shouldRunOutToShowdown,
   totalChips,
 } from "./rules.js";
@@ -25,6 +26,7 @@ export function createHandState({ players, deck, dealer = 0, smallBlind = 20, bi
       ...player,
       seat,
       stack: player.stack,
+      startingStack: player.stack,
       committed: 0,
       bet: 0,
       cards: [],
@@ -45,6 +47,7 @@ export function createHandState({ players, deck, dealer = 0, smallBlind = 20, bi
     activeIndex: firstPreflopActor(dealer, players.length),
     handActive: true,
     log: [],
+    history: [],
     result: null,
   };
 
@@ -62,6 +65,7 @@ export function applyPlayerAction(state, playerId, action, targetBet = 0) {
   if (!needsAction(player, state.currentBet)) throw new Error(`${playerId} does not need to act`);
 
   const toCall = Math.max(0, state.currentBet - player.bet);
+  const before = actionSnapshot(state, player, action, targetBet);
   if (action === "fold") {
     player.folded = true;
     player.acted = true;
@@ -78,6 +82,7 @@ export function applyPlayerAction(state, playerId, action, targetBet = 0) {
     if (player.acted && player.bet < state.currentBet) {
       throw new Error("Action was not reopened by a full raise");
     }
+    validateRaiseTarget(state, player, targetBet);
     const result = applyBetOrRaise({
       player,
       targetBet,
@@ -95,8 +100,32 @@ export function applyPlayerAction(state, playerId, action, targetBet = 0) {
     throw new Error(`Unknown action: ${action}`);
   }
 
+  recordAction(state, before, player);
   progressHand(state);
   return state;
+}
+
+export function getLegalActions(state) {
+  if (!state.handActive) return { actions: [], reason: "hand-complete" };
+  const player = state.players[state.activeIndex];
+  if (!needsAction(player, state.currentBet)) return { playerId: player?.id, actions: [], reason: "no-action-needed" };
+  const toCall = Math.max(0, state.currentBet - player.bet);
+  const maxTarget = player.bet + player.stack;
+  const minRaise = minRaiseTo(state.currentBet, state.lastFullRaise, state.bigBlind);
+  const canFullRaise = maxTarget >= minRaise;
+  const canAllInRaise = maxTarget > state.currentBet && maxTarget < minRaise;
+  return {
+    playerId: player.id,
+    street: state.street,
+    toCall,
+    currentBet: state.currentBet,
+    minRaiseTo: canFullRaise ? minRaise : null,
+    maxRaiseTo: maxTarget,
+    actions: [
+      ...(toCall > 0 ? ["fold", "call"] : ["check"]),
+      ...(canFullRaise || canAllInRaise ? ["raise"] : []),
+    ],
+  };
 }
 
 export function progressHand(state) {
@@ -124,6 +153,34 @@ export function chipTotal(state) {
   return totalChips(state.players, state.pot);
 }
 
+export function serializeHandHistory(state) {
+  return {
+    version: 1,
+    game: "nlhe",
+    blinds: { small: state.smallBlind, big: state.bigBlind },
+    dealerSeat: state.dealer,
+    players: state.players.map((player) => ({
+      id: player.id,
+      name: player.name,
+      seat: player.seat,
+      startingStack: player.startingStack,
+      endingStack: player.stack,
+      committed: player.committed,
+      holeCards: player.cards.map(cardText),
+      folded: player.folded,
+      allIn: player.allIn,
+    })),
+    board: state.board.map(cardText),
+    actions: state.history,
+    result: state.result ? {
+      type: state.result.type,
+      winnerId: state.result.primaryWinner?.id,
+      summary: state.result.summary,
+      awards: state.result.awards ? Object.fromEntries(state.result.awards) : undefined,
+    } : null,
+  };
+}
+
 function dealHoleCards(state) {
   for (let round = 0; round < 2; round += 1) {
     for (const player of state.players) {
@@ -136,6 +193,12 @@ function postBlind(state, index, amount) {
   const paid = commitToPot(state, state.players[index], amount);
   state.players[index].acted = false;
   state.log.push(`${state.players[index].id} posts ${paid}`);
+  recordEvent(state, "blind", {
+    playerId: state.players[index].id,
+    amount: paid,
+    betAfter: state.players[index].bet,
+    potAfter: state.pot,
+  });
 }
 
 function commitToPot(state, player, amount) {
@@ -168,12 +231,15 @@ function advanceStreet(state) {
   if (state.street === "preflop") {
     state.board.push(state.deck.shift(), state.deck.shift(), state.deck.shift());
     state.street = "flop";
+    recordEvent(state, "street", { street: state.street, board: state.board.map(cardText) });
   } else if (state.street === "flop") {
     state.board.push(state.deck.shift());
     state.street = "turn";
+    recordEvent(state, "street", { street: state.street, board: state.board.map(cardText) });
   } else if (state.street === "turn") {
     state.board.push(state.deck.shift());
     state.street = "river";
+    recordEvent(state, "street", { street: state.street, board: state.board.map(cardText) });
   } else {
     showdown(state);
     return;
@@ -192,6 +258,7 @@ function runOutToShowdown(state) {
   while (state.board.length < 5) {
     state.board.push(state.deck.shift());
   }
+  recordEvent(state, "runout", { board: state.board.map(cardText) });
   showdown(state);
 }
 
@@ -210,6 +277,12 @@ function showdown(state) {
     type: "showdown",
     ...result,
   };
+  recordEvent(state, "showdown", {
+    board: state.board.map(cardText),
+    winnerId: result.primaryWinner?.id,
+    awards: Object.fromEntries(result.awards),
+    summary: result.summary,
+  });
 }
 
 function finishByFold(state, winner) {
@@ -221,4 +294,59 @@ function finishByFold(state, winner) {
     primaryWinner: winner,
     summary: `${winner.id} wins uncontested`,
   };
+  recordEvent(state, "finish", {
+    reason: "fold",
+    winnerId: winner.id,
+    summary: state.result.summary,
+  });
+}
+
+function validateRaiseTarget(state, player, targetBet) {
+  const maxTarget = player.bet + player.stack;
+  if (targetBet <= state.currentBet) throw new Error("Raise target must exceed the current bet");
+  const fullRaiseTo = minRaiseTo(state.currentBet, state.lastFullRaise, state.bigBlind);
+  if (targetBet < fullRaiseTo && maxTarget >= fullRaiseTo) {
+    throw new Error("Raise target is below the minimum legal raise");
+  }
+}
+
+function actionSnapshot(state, player, action, targetBet) {
+  return {
+    type: "action",
+    playerId: player.id,
+    action,
+    targetBet,
+    street: state.street,
+    potBefore: state.pot,
+    betBefore: player.bet,
+    stackBefore: player.stack,
+    committedBefore: player.committed,
+    currentBetBefore: state.currentBet,
+    toCallBefore: Math.max(0, state.currentBet - player.bet),
+    board: state.board.map(cardText),
+  };
+}
+
+function recordAction(state, before, player) {
+  recordEvent(state, "action", {
+    ...before,
+    paid: player.committed - before.committedBefore,
+    betAfter: player.bet,
+    stackAfter: player.stack,
+    potAfter: state.pot,
+    currentBetAfter: state.currentBet,
+  });
+}
+
+function recordEvent(state, type, data) {
+  state.history.push({
+    seq: state.history.length + 1,
+    type,
+    street: state.street,
+    ...data,
+  });
+}
+
+function cardText(card) {
+  return `${card.id}${card.suit}`;
 }

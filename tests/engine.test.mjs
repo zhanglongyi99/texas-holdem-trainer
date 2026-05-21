@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { applyPlayerAction, chipTotal, createHandState } from "../engine.js";
+import { applyPlayerAction, chipTotal, createHandState, getLegalActions, serializeHandHistory } from "../engine.js";
 
 const card = (rank, suit = "s") => ({ id: String(rank), value: rankValue(rank), suit });
 
@@ -106,6 +106,40 @@ test("rejects out-of-turn and illegal check actions", () => {
   const state = createHandState({ players: basePlayers(), deck: deterministicDeck(), dealer: 0 });
   assert.throws(() => applyPlayerAction(state, "p1", "call"), /not p1's turn/i);
   assert.throws(() => applyPlayerAction(state, "p0", "check"), /cannot check/i);
+});
+
+test("exposes legal actions with call amount and raise bounds", () => {
+  const state = createHandState({ players: basePlayers(), deck: deterministicDeck(), dealer: 0 });
+  const legal = getLegalActions(state);
+  assert.equal(legal.playerId, "p0");
+  assert.equal(legal.toCall, 40);
+  assert.deepEqual(legal.actions, ["fold", "call", "raise"]);
+  assert.equal(legal.minRaiseTo, 80);
+  assert.equal(legal.maxRaiseTo, 1000);
+});
+
+test("rejects below-minimum raises when player can make a legal full raise", () => {
+  const state = createHandState({ players: basePlayers(), deck: deterministicDeck(), dealer: 0 });
+  assert.throws(() => applyPlayerAction(state, "p0", "raise", 60), /minimum legal raise/i);
+});
+
+test("records structured hand history for accurate review export", () => {
+  const state = createHandState({ players: basePlayers(), deck: deterministicDeck(), dealer: 0 });
+  applyPlayerAction(state, "p0", "call");
+  applyPlayerAction(state, "p1", "call");
+  applyPlayerAction(state, "p2", "check");
+
+  const history = serializeHandHistory(state);
+  assert.equal(history.version, 1);
+  assert.equal(history.players.length, 3);
+  assert.deepEqual(history.board, ["2s", "7h", "9c"]);
+  assert.equal(history.actions[0].type, "blind");
+  assert.equal(history.actions[2].type, "action");
+  assert.equal(history.actions[2].playerId, "p0");
+  assert.equal(history.actions[2].action, "call");
+  assert.equal(history.actions[2].paid, 40);
+  assert.equal(history.actions.at(-1).type, "street");
+  assert.equal(history.actions.at(-1).street, "flop");
 });
 
 console.log("all engine tests passed");

@@ -4,7 +4,7 @@
   "private": false,
   "type": "module",
   "scripts": {
-    "test": "node tests/rules.test.mjs && node tests/engine.test.mjs"
+    "test": "node tests/rules.test.mjs && node tests/engine.test.mjs && node tests/review.test.mjs"
   },
   "license": "MIT"
 }

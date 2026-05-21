@@ -61,6 +61,10 @@ npm test
 - 翻前 limp 后大盲行动权
 - 短码 all-in 不重新打开行动权
 - 越位行动 / 非法 check 拒绝
+- 合法动作、跟注额、最小/最大加注边界
+- 结构化 hand history
+- 按行动当时状态抽取复盘决策点
+- solver-facing spot JSON 雏形
 
 ## 架构说明
 
