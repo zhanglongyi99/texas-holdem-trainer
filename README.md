@@ -33,7 +33,7 @@ http://127.0.0.1:4173/
 
 ## 规则测试
 
-项目把关键德州扑克规则放在 `rules.js`，并提供无依赖测试：
+项目把关键德州扑克规则放在 `rules.js`，并用 `engine.js` 提供完整手牌状态机。当前测试无第三方依赖：
 
 ```powershell
 npm test
@@ -57,6 +57,14 @@ npm test
 - 多层边池
 - 总筹码守恒
 - 随机边池压力测试
+- 完整手牌从盲注到河牌摊牌
+- 翻前 limp 后大盲行动权
+- 短码 all-in 不重新打开行动权
+- 越位行动 / 非法 check 拒绝
+
+## 架构说明
+
+见 [docs/architecture.md](docs/architecture.md)。
 
 ## 项目定位
 
