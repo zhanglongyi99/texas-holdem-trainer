@@ -109,7 +109,11 @@ function saveSession() {
 }
 
 function loadLibrary() {
-  return readJson(HAND_STORE_KEY, []);
+  const records = readJson(HAND_STORE_KEY, []);
+  if (!Array.isArray(records)) return [];
+  return records
+    .filter((record) => record && record.history && Array.isArray(record.history.actions))
+    .map((record) => ({ tags: [], heroCards: [], board: [], ...record }));
 }
 
 function saveLibrary() {
@@ -121,6 +125,14 @@ function readJson(key, fallback) {
     return JSON.parse(localStorage.getItem(key) || "null") || fallback;
   } catch {
     return fallback;
+  }
+}
+
+function safeRender() {
+  try {
+    render();
+  } catch (error) {
+    console.error("Render failed", error);
   }
 }
 
@@ -137,7 +149,7 @@ function startHand() {
   app.savedCurrentHandId = null;
   saveSession();
   switchView("play");
-  render();
+  safeRender();
   runUntilHero();
 }
 
@@ -157,18 +169,18 @@ function createConfiguredPlayers() {
 function runUntilHero() {
   if (!app.handState || !app.handState.handActive) {
     persistCompletedHand();
-    render();
+    safeRender();
     return;
   }
   const actor = app.handState.players[app.handState.activeIndex];
   if (actor.id === HERO_ID) {
-    render();
+    safeRender();
     return;
   }
   window.setTimeout(() => {
     const decision = chooseBotAction(app.handState, actor);
     applyPlayerAction(app.handState, actor.id, decision.action, decision.targetBet || 0);
-    render();
+    safeRender();
     runUntilHero();
   }, 260);
 }
@@ -179,7 +191,7 @@ function heroAction(action) {
   if (legal.playerId !== HERO_ID || !legal.actions.includes(action)) return;
   const target = action === "raise" ? getHeroRaiseTarget(legal) : 0;
   applyPlayerAction(app.handState, HERO_ID, action, target);
-  render();
+  safeRender();
   runUntilHero();
 }
 
@@ -599,7 +611,7 @@ function on(element, event, handler) {
 function applyPreset(id) {
   app.config = { ...PRESETS[id] };
   localStorage.setItem(CONFIG_KEY, JSON.stringify(app.config));
-  render();
+  safeRender();
 }
 
 function saveCustomConfig(event) {
@@ -614,7 +626,7 @@ function saveCustomConfig(event) {
     aiLevel: els.aiLevelInput.value,
   };
   localStorage.setItem(CONFIG_KEY, JSON.stringify(app.config));
-  render();
+  safeRender();
 }
 
 function copyCurrentHand() {
@@ -640,7 +652,7 @@ on(els.clearLibraryBtn, "click", () => {
   app.library = [];
   app.selectedHandId = null;
   saveLibrary();
-  render();
+  safeRender();
 });
 on(els.librarySearch, "input", renderLibrary);
 on(els.libraryPresetFilter, "change", renderLibrary);
@@ -651,11 +663,11 @@ document.addEventListener("click", (event) => {
   const reviewId = event.target.closest("[data-review-id]")?.dataset.reviewId;
   if (reviewId) {
     app.selectedHandId = reviewId;
-    render();
+    safeRender();
     switchView("review");
   }
   const presetId = event.target.closest("[data-preset-id]")?.dataset.presetId;
   if (presetId) applyPreset(presetId);
 });
 
-render();
+safeRender();
