@@ -7,9 +7,9 @@ The project now separates poker rules from UI and AI behavior:
 - `rules.js`: pure rule helpers for action eligibility, betting constraints, hand evaluation, pot settlement, blind positions, and chip accounting.
 - `engine.js`: pure hand state machine that can play a full hand from blinds to showdown without DOM or AI.
 - `review.js`: pure review helpers that extract exact decision-time spots and solver-facing spot shapes from hand history.
-- `app.js`: browser UI, simple bot decisions, review/stat tracking.
+- `app.js`: session controller and browser UI. It now uses `engine.js` as the active hand state source, persists completed hand histories, and drives review/stat views from saved hands.
 
-GTO or solver work should not connect directly to `app.js`. It should consume hand states or exported hand histories from `engine.js`/`rules.js` shaped data.
+GTO or solver work should not connect directly to UI state. It should consume serialized hand histories or `review.js` decision spots.
 
 ## Tested Coverage
 
@@ -42,13 +42,25 @@ The review test suite covers:
 - preserving pot, call amount, board, stack, and hole cards at the decision point
 - converting decisions into a stable solver-facing spot shape
 
-## Next Architecture Step
+## Implemented Page Architecture
 
-Before adding GTO, the next clean step is to make `app.js` use `engine.js` as its single source of hand state. After that, solver integration can target a stable interface:
+The browser UI now has five top-level views:
+
+- table play
+- hand library
+- review workbench
+- data center
+- table configuration
+
+Completed hands are serialized and stored locally. Review can open any stored hand, not just the most recent one. The configuration view supports integrated presets such as HU, 6-max, 9-max, short stack, and deep stack, plus custom seat/blind/buy-in settings.
+
+## Remaining Architecture Step
+
+The major remaining architecture step before GTO is strategy isolation. Current bot behavior is still a lightweight in-app heuristic. Solver integration can target this stable interface:
 
 1. collect engine hand state and action history
 2. extract review decision spots with `review.js`
-3. call a solver service or imported strategy table
+3. call a solver service, strategy table, or stronger AI policy
 4. store solver output on the completed hand review
 5. render strategy frequencies and EV deltas in the review screen
 

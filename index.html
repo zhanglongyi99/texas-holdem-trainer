@@ -15,8 +15,10 @@
         </div>
         <nav class="view-tabs" aria-label="主视图">
           <button class="tab active" data-view="play" type="button">牌桌</button>
-          <button class="tab" data-view="review" type="button">本手复盘</button>
-          <button class="tab" data-view="stats" type="button">数据统计</button>
+          <button class="tab" data-view="library" type="button">手牌库</button>
+          <button class="tab" data-view="review" type="button">复盘</button>
+          <button class="tab" data-view="stats" type="button">数据</button>
+          <button class="tab" data-view="config" type="button">配置</button>
         </nav>
       </header>
 
@@ -41,7 +43,7 @@
               </div>
               <div class="hero-stack">
                 <span id="stageLabel">等待开始</span>
-                <strong id="heroStack">2000</strong>
+                <strong id="heroStack">--</strong>
               </div>
             </div>
           </section>
@@ -53,22 +55,10 @@
                 <button id="newHandBtn" class="primary-btn" type="button">开始新手牌</button>
               </div>
               <div class="status-grid">
-                <div>
-                  <span>本地手数</span>
-                  <strong id="handsPlayed">0</strong>
-                </div>
-                <div>
-                  <span>本手位置</span>
-                  <strong id="heroPosition">--</strong>
-                </div>
-                <div>
-                  <span>当前需跟</span>
-                  <strong id="toCallAmount">0</strong>
-                </div>
-                <div>
-                  <span>有效后手</span>
-                  <strong id="effectiveStack">--</strong>
-                </div>
+                <div><span>桌型</span><strong id="tablePresetLabel">--</strong></div>
+                <div><span>本地手数</span><strong id="handsPlayed">0</strong></div>
+                <div><span>当前需跟</span><strong id="toCallAmount">0</strong></div>
+                <div><span>有效后手</span><strong id="effectiveStack">--</strong></div>
               </div>
             </div>
 
@@ -87,14 +77,14 @@
                 <input id="raiseSize" type="range" min="2" max="5" value="3" step="0.5" />
                 <strong id="raiseSizeLabel">3x</strong>
               </label>
-              <p class="quiet-note">对局中不展示策略建议。打完这一手后，在复盘页看每个决策点。</p>
+              <p class="quiet-note">对局中不展示策略建议。每手牌结束后会自动进入手牌库。</p>
             </div>
 
             <div id="resultPanel" class="round-card result-panel hidden">
               <h2>本手结束</h2>
               <p id="resultText">等待结果</p>
               <div class="result-actions">
-                <button id="reviewHandBtn" class="primary-btn" type="button">查看复盘</button>
+                <button id="reviewHandBtn" class="primary-btn" type="button">复盘这手</button>
                 <button id="nextHandBtn" class="ghost-btn" type="button">下一手</button>
               </div>
             </div>
@@ -110,18 +100,49 @@
         </section>
       </section>
 
-      <section id="reviewView" class="view" aria-label="本手复盘">
+      <section id="libraryView" class="view" aria-label="历史手牌库">
+        <div class="library-layout">
+          <section class="round-card">
+            <div class="section-head">
+              <h2>历史对局 / 手牌库</h2>
+              <button id="clearLibraryBtn" class="ghost-btn danger" type="button">清空手牌库</button>
+            </div>
+            <div class="filter-grid">
+              <label>筛选
+                <input id="librarySearch" type="search" placeholder="手牌、桌型、标签、结果" />
+              </label>
+              <label>桌型
+                <select id="libraryPresetFilter">
+                  <option value="">全部</option>
+                  <option value="hu">单挑 HU</option>
+                  <option value="sixMax">6-max</option>
+                  <option value="nineMax">9-max</option>
+                  <option value="shortStack">短码</option>
+                  <option value="deepStack">深筹码</option>
+                </select>
+              </label>
+            </div>
+            <div id="handLibrary" class="hand-library empty-state">暂无历史手牌。</div>
+          </section>
+          <aside class="round-card">
+            <h2>选中手牌</h2>
+            <div id="libraryDetail" class="review-summary empty-state">从左侧选择一手牌进行复盘。</div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="reviewView" class="view" aria-label="复盘工作台">
         <div class="review-layout">
           <section class="round-card">
             <div class="section-head">
-              <h2>本手摘要</h2>
-              <button class="ghost-btn" data-view-jump="play" type="button">回到牌桌</button>
+              <h2>复盘摘要</h2>
+              <button class="ghost-btn" data-view-jump="library" type="button">回到手牌库</button>
             </div>
-            <div id="reviewSummary" class="review-summary empty-state">还没有完成的手牌。先打一手，再来看复盘。</div>
+            <div id="reviewSummary" class="review-summary empty-state">从手牌库选择任意历史手牌进入复盘。</div>
           </section>
           <section class="round-card">
-            <h2>关键决策</h2>
-            <div id="decisionReview" class="decision-list empty-state">等待你的行动记录。</div>
+            <h2>决策点</h2>
+            <div id="decisionReview" class="decision-list empty-state">等待选择手牌。</div>
           </section>
         </div>
       </section>
@@ -138,6 +159,40 @@
           <section class="round-card">
             <h2>问题诊断</h2>
             <div id="leakReport" class="leak-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="configView" class="view" aria-label="牌桌配置">
+        <div class="config-layout">
+          <section class="round-card">
+            <h2>集成桌型</h2>
+            <div id="presetCards" class="preset-grid"></div>
+          </section>
+          <section class="round-card">
+            <h2>自定义参数</h2>
+            <form id="configForm" class="config-form">
+              <label>人数
+                <input id="seatCountInput" type="number" min="2" max="9" step="1" />
+              </label>
+              <label>小盲
+                <input id="smallBlindInput" type="number" min="1" step="1" />
+              </label>
+              <label>大盲
+                <input id="bigBlindInput" type="number" min="2" step="1" />
+              </label>
+              <label>买入筹码
+                <input id="buyInInput" type="number" min="100" step="20" />
+              </label>
+              <label>AI 档位
+                <select id="aiLevelInput">
+                  <option value="normal">常规桌</option>
+                  <option value="soft">新手桌</option>
+                  <option value="tough">强对抗桌</option>
+                </select>
+              </label>
+              <button class="primary-btn" type="submit">保存配置</button>
+            </form>
           </section>
         </div>
       </section>

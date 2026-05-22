@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>德州扑克训练器页面架构提案</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7f4;
+        --panel: #ffffff;
+        --ink: #1b2520;
+        --muted: #66736b;
+        --line: #d8e0d9;
+        --green: #246f5d;
+        --blue: #2f6e99;
+        --gold: #bd8b2f;
+        --red: #bf5058;
+        --soft: #eef3ef;
+        --shadow: 0 16px 42px rgba(25, 42, 34, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, "Segoe UI", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        width: min(1280px, 100%);
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      header {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: var(--green);
+        font-size: 13px;
+        font-weight: 850;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 0;
+        font-size: clamp(30px, 5vw, 48px);
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-bottom: 12px;
+        font-size: 22px;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+
+      .lead {
+        max-width: 900px;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 16px;
+        box-shadow: var(--shadow);
+      }
+
+      .span-12 {
+        grid-column: span 12;
+      }
+
+      .span-6 {
+        grid-column: span 6;
+      }
+
+      .span-4 {
+        grid-column: span 4;
+      }
+
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .principle {
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--green);
+        border-radius: 7px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .principle strong,
+      .metric strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .flow {
+        display: grid;
+        gap: 12px;
+      }
+
+      .flow-row {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .node {
+        position: relative;
+        min-height: 112px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .node::after {
+        content: "→";
+        position: absolute;
+        top: 50%;
+        right: -17px;
+        transform: translateY(-50%);
+        color: var(--muted);
+        font-weight: 900;
+      }
+
+      .node:last-child::after {
+        content: "";
+      }
+
+      .node.play {
+        border-left: 5px solid var(--green);
+      }
+
+      .node.review {
+        border-left: 5px solid var(--blue);
+      }
+
+      .node.data {
+        border-left: 5px solid var(--gold);
+      }
+
+      .node.risk {
+        border-left: 5px solid var(--red);
+      }
+
+      .node small {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+      }
+
+      .layers {
+        display: grid;
+        gap: 10px;
+      }
+
+      .layer {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .tag {
+        display: inline-block;
+        border-radius: 6px;
+        background: var(--soft);
+        padding: 4px 7px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li + li {
+        margin-top: 5px;
+      }
+
+      .screen-map {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        min-height: 520px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--line);
+        background: #edf3ef;
+        padding: 14px;
+      }
+
+      .nav-item {
+        margin-bottom: 8px;
+        border-radius: 7px;
+        background: white;
+        padding: 10px;
+        font-weight: 850;
+      }
+
+      .nav-item span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .top-strip,
+      .main-canvas,
+      .right-dock,
+      .bottom-dock {
+        border: 1px dashed #b9c6bd;
+        border-radius: 8px;
+        background: white;
+        padding: 12px;
+      }
+
+      .workspace-grid {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 12px;
+      }
+
+      .main-canvas {
+        min-height: 330px;
+      }
+
+      .bottom-dock {
+        grid-column: 1 / -1;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .preset-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .preset {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .preset strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .workflow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .step {
+        border: 1px solid var(--line);
+        border-top: 4px solid var(--blue);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fbfcfb;
+        padding: 10px;
+      }
+
+      .decision-table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 8px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--soft);
+        font-size: 13px;
+      }
+
+      @media (max-width: 980px) {
+        main {
+          padding: 18px;
+        }
+
+        .span-6,
+        .span-4 {
+          grid-column: span 12;
+        }
+
+        .principles,
+        .flow-row,
+        .metrics,
+        .preset-grid,
+        .workflow,
+        .screen-map,
+        .workspace-grid,
+        .layer {
+          grid-template-columns: 1fr;
+        }
+
+        .node::after {
+          content: "↓";
+          top: auto;
+          right: 50%;
+          bottom: -20px;
+          transform: translateX(50%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Page Architecture Proposal</p>
+        <h1>德州扑克训练器页面架构提案</h1>
+        <p class="lead">
+          目标不是先做漂亮页面，而是把对局强度、历史手牌沉淀和复盘准确性放在架构中心。页面只消费规则引擎、策略层、手牌库和复盘层输出的数据，避免 UI 自己推断规则或复盘结论。
+        </p>
+      </header>
+
+      <section class="card span-12">
+        <h2>核心原则</h2>
+        <div class="principles">
+          <div class="principle">
+            <strong>对局强度优先</strong>
+            <span class="muted">AI 行为必须来自可替换策略层，不能散落在按钮和 UI 事件里。</span>
+          </div>
+          <div class="principle">
+            <strong>复盘准确性优先</strong>
+            <span class="muted">任意历史手牌都可复盘；复盘只使用 action-time snapshot，不用最终牌面、最终底池倒推。</span>
+          </div>
+          <div class="principle">
+            <strong>页面服从数据</strong>
+            <span class="muted">牌桌、手牌库、复盘、统计都读同一份 hand history 和 decision spots。</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <section class="card span-12">
+          <h2>总体功能分区</h2>
+          <div class="screen-map">
+            <aside class="sidebar">
+              <div class="nav-item">牌桌训练<span>纯对局，无策略提示</span></div>
+              <div class="nav-item">历史对局 / 手牌库<span>会话、筛选、收藏、标记</span></div>
+              <div class="nav-item">复盘工作台<span>选定手牌 / 选定决策点</span></div>
+              <div class="nav-item">数据中心<span>长期 leak report</span></div>
+              <div class="nav-item">牌桌配置<span>桌型、人数、盲注、买入</span></div>
+            </aside>
+            <div class="workspace">
+              <div class="top-strip">
+                <strong>全局状态栏</strong>
+                <span class="muted"> 当前训练模式、桌型、盲注、手数、保存状态</span>
+              </div>
+              <div class="workspace-grid">
+                <div class="main-canvas">
+                  <strong>主工作区</strong>
+                  <p class="muted">牌桌时显示牌桌；手牌库显示历史列表和筛选；复盘时显示选中手牌的行动时间线和节点详情；数据中心显示图表和问题诊断。</p>
+                </div>
+                <div class="right-dock">
+                  <strong>上下文侧栏</strong>
+                  <p class="muted">牌桌时是行动按钮；手牌库是筛选器；复盘时是当前 spot 信息；数据页是维度选择。</p>
+                </div>
+                <div class="bottom-dock">
+                  <strong>底部抽屉</strong>
+                  <span class="muted">当前会话记录、手牌标签、导出 JSON、调试信息。</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-12">
+          <h2>对局、收录、检索、复盘的数据流</h2>
+          <div class="flow">
+            <div class="flow-row">
+              <div class="node play">
+                <h3>1. 训练配置</h3>
+                <span class="tag">User Intent</span>
+                <small>选择 HU / 6-max / 9-max、盲注、买入、AI 档位、训练目标。</small>
+              </div>
+              <div class="node play">
+                <h3>2. Hand Engine</h3>
+                <span class="tag">engine.js</span>
+                <small>发牌、盲注、合法动作、街次推进、摊牌结算。</small>
+              </div>
+              <div class="node play">
+                <h3>3. Strategy Layer</h3>
+                <span class="tag">后续实现</span>
+                <small>AI 只读取合法动作和当前状态，返回一个动作，不直接改状态。</small>
+              </div>
+              <div class="node data">
+                <h3>4. Session Storage</h3>
+                <span class="tag">hand archive</span>
+                <small>每手牌结束自动入库，按会话、桌型、标签和结果保存。</small>
+              </div>
+              <div class="node review">
+                <h3>5. Review Workbench</h3>
+                <span class="tag">review.js</span>
+                <small>用户从手牌库选择任意手牌，再抽取决策点生成复盘和 solver spot。</small>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-6">
+          <h2>页面 1：牌桌训练</h2>
+          <ul>
+            <li>只显示对局必要信息：底池、公共牌、玩家筹码、当前位置、轮到谁行动。</li>
+            <li>不显示 GTO 建议、不显示复盘评价，避免训练时被提示污染。</li>
+            <li>行动按钮来自 `getLegalActions()`，UI 不自己判断能不能加注。</li>
+            <li>AI 行动来自策略层，策略层只能提交合法 action。</li>
+            <li>每手牌结束自动写入手牌库，供历史复盘、统计和导出使用。</li>
+          </ul>
+        </section>
+
+        <section class="card span-6">
+          <h2>页面 2：历史对局 / 手牌库</h2>
+          <ul>
+            <li>按训练会话收录每一手牌，保留完整 hand history。</li>
+            <li>支持按日期、桌型、人数、盲注、位置、手牌、输赢、标签筛选。</li>
+            <li>支持收藏、标记、批量导出、重新打开某一手牌。</li>
+            <li>从任意历史手牌进入复盘工作台，而不只复盘刚结束的一手。</li>
+            <li>列表优先显示：手牌编号、时间、桌型、位置、起手牌、公共牌、净输赢、关键标签。</li>
+          </ul>
+        </section>
+
+        <section class="card span-6">
+          <h2>页面 3：复盘工作台</h2>
+          <ul>
+            <li>复盘入口来自手牌库、当前手结束弹窗、数据中心某个 leak drill-down。</li>
+            <li>按行动时间线展示 hero 的每个决策点，可跳转到任意街次。</li>
+            <li>每个节点展示行动当时的底池、需跟、有效后手、公共牌、手牌。</li>
+            <li>先展示“规则准确数据”，再展示策略评价。</li>
+            <li>GTO 接入后，每个节点可显示频率、EV、推荐动作和偏差。</li>
+            <li>允许给手牌打标签：薄价值、过度跟注、错过 CBet、位置问题。</li>
+          </ul>
+        </section>
+
+        <section class="card span-6">
+          <h2>页面 4：数据中心</h2>
+          <div class="metrics">
+            <div class="metric"><strong>VPIP / PFR</strong><span class="muted">翻前松紧和主动性</span></div>
+            <div class="metric"><strong>3Bet / Fold to 3Bet</strong><span class="muted">翻前对抗质量</span></div>
+            <div class="metric"><strong>CBet / Fold to CBet</strong><span class="muted">翻后主动与防守</span></div>
+            <div class="metric"><strong>WTSD / W$SD / WWSF</strong><span class="muted">摊牌与赢池表现</span></div>
+          </div>
+          <p class="muted" style="margin-top: 12px">
+            数据中心不直接下结论，先给样本量和置信度。样本太少时只提示趋势，不做强判断。
+          </p>
+        </section>
+
+        <section class="card span-12">
+          <h2>页面 5：牌桌配置</h2>
+          <div class="preset-grid">
+            <div class="preset">
+              <strong>单挑桌 HU</strong>
+              <span class="muted">2 人桌，按钮位发小盲，适合训练高频对抗、宽范围和翻后单挑。</span>
+            </div>
+            <div class="preset">
+              <strong>6-max 常规桌</strong>
+              <span class="muted">6 人桌，默认主训练模式，接近线上现金桌常见结构。</span>
+            </div>
+            <div class="preset">
+              <strong>9-max Full Ring</strong>
+              <span class="muted">9 人桌，范围更紧，适合训练前位纪律和多人底池。</span>
+            </div>
+            <div class="preset">
+              <strong>短码训练</strong>
+              <span class="muted">20bb / 40bb，有更多 all-in 和 SPR 压缩场景。</span>
+            </div>
+            <div class="preset">
+              <strong>标准现金桌</strong>
+              <span class="muted">100bb 买入，盲注可选 10/20、20/40、50/100、100/200。</span>
+            </div>
+            <div class="preset">
+              <strong>深筹码训练</strong>
+              <span class="muted">150bb / 200bb，强调转牌、河牌大底池决策。</span>
+            </div>
+          </div>
+          <ul style="margin-top: 12px">
+            <li>可调参数：人数、按钮位置、大小盲、初始买入、有效后手、AI 席位数量、AI 档位。</li>
+            <li>规则参数：No-Limit Hold'em 为主；ante、straddle、rake 暂时作为后续高级选项。</li>
+            <li>训练主题：翻前入池、3Bet Pot、CBet、防守 CBet、河牌决策、短码 all-in。</li>
+            <li>对局目标：固定手数、固定时间、直到指定 spot 出现、只练某类位置。</li>
+          </ul>
+        </section>
+
+        <section class="card span-12">
+          <h2>模块职责图</h2>
+          <div class="layers">
+            <div class="layer">
+              <strong>UI Views</strong>
+              <span>牌桌、手牌库、复盘工作台、数据中心、牌桌配置。只负责展示和用户输入。</span>
+            </div>
+            <div class="layer">
+              <strong>Session Controller</strong>
+              <span>管理训练会话、当前手牌、桌型配置、页面跳转和保存策略。</span>
+            </div>
+            <div class="layer">
+              <strong>Strategy Layer</strong>
+              <span>AI 策略接口。读取 engine state + legal actions，输出动作。GTO AI 最后讨论。</span>
+            </div>
+            <div class="layer">
+              <strong>Hand Engine</strong>
+              <span>唯一对局状态源。发牌、动作、街次、摊牌、结算、结构化 history。</span>
+            </div>
+            <div class="layer">
+              <strong>Review Layer</strong>
+              <span>从任意历史 hand history 抽取 decision spots，生成 review summary 和 solver spot。</span>
+            </div>
+            <div class="layer">
+              <strong>Storage Layer</strong>
+              <span>保存训练会话、hand history、统计指标、标签、训练配置和后续 solver 输出。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-12">
+          <h2>历史对局复盘流程</h2>
+          <div class="workflow">
+            <div class="step">
+              <h3>1. 自动收录</h3>
+              <p class="muted">每手牌完成后保存 hand history、玩家配置、桌型、标签和结果。</p>
+            </div>
+            <div class="step">
+              <h3>2. 检索筛选</h3>
+              <p class="muted">从手牌库按时间、桌型、位置、起手牌、输赢、行动类型筛选。</p>
+            </div>
+            <div class="step">
+              <h3>3. 选择复盘</h3>
+              <p class="muted">打开某一手牌，选择整手复盘或跳到某个 hero 决策点。</p>
+            </div>
+            <div class="step">
+              <h3>4. 追踪问题</h3>
+              <p class="muted">给手牌打标签，回写到数据中心，形成可重复训练的 leak 列表。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-12">
+          <h2>复盘节点数据结构</h2>
+          <table class="decision-table">
+            <thead>
+              <tr>
+                <th>字段</th>
+                <th>用途</th>
+                <th>准确性要求</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>street / board</td>
+                <td>判断当时处于哪一街、公共牌是什么。</td>
+                <td>必须来自行动时快照，不能用最终 board。</td>
+              </tr>
+              <tr>
+                <td>potBefore / toCall</td>
+                <td>计算底池赔率、风险回报。</td>
+                <td>必须是行动前数值。</td>
+              </tr>
+              <tr>
+                <td>stackBefore / playerBetBefore</td>
+                <td>计算 SPR、有效后手、加注尺度。</td>
+                <td>必须是行动前数值。</td>
+              </tr>
+              <tr>
+                <td>action / targetBet / paid</td>
+                <td>记录真实选择，供复盘和统计。</td>
+                <td>必须和 hand history 一致。</td>
+              </tr>
+              <tr>
+                <td>solverOutput</td>
+                <td>后续接入频率、EV、推荐动作。</td>
+                <td>异步填充，不能影响原始 hand history。</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card span-12">
+          <h2>开发顺序建议</h2>
+          <div class="flow-row">
+            <div class="node data">
+              <h3>A. UI 接入 engine</h3>
+              <small>先让牌桌只使用 `engine.js` 状态，不再维护第二套状态机。</small>
+            </div>
+            <div class="node data">
+              <h3>B. 牌桌配置模型</h3>
+              <small>实现 HU / 6-max / 9-max、盲注、买入、AI 席位等配置。</small>
+            </div>
+            <div class="node review">
+              <h3>C. 手牌库 / Storage</h3>
+              <small>每手牌自动入库，支持历史检索、标签和导出。</small>
+            </div>
+            <div class="node play">
+              <h3>D. 复盘工作台</h3>
+              <small>从选定历史手牌提取 decision spots，先做基础准确复盘。</small>
+            </div>
+            <div class="node risk">
+              <h3>E. 策略层 / GTO</h3>
+              <small>先拆 AI 策略层，最后接 solver 或策略表，填充频率和 EV。</small>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>
