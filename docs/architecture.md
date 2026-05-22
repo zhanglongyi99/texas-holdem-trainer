@@ -1,5 +1,7 @@
 # Architecture Notes
 
+For handoff context, read `docs/HANDOFF.md` first. This file focuses on engineering boundaries and rule/review architecture.
+
 ## Current Rule Boundary
 
 The project now separates poker rules from UI and AI behavior:
@@ -63,6 +65,18 @@ The major remaining architecture step before GTO is strategy isolation. Current 
 3. call a solver service, strategy table, or stronger AI policy
 4. store solver output on the completed hand review
 5. render strategy frequencies and EV deltas in the review screen
+
+## Strategy Isolation Target
+
+The next implementation milestone should move heuristic bot logic out of `app.js` into a strategy module. The strategy layer should:
+
+- receive a read-only hand state snapshot and legal actions from `engine.js`
+- return one legal action object
+- never mutate the engine state directly
+- be testable without DOM
+- allow future policies such as beginner bots, stronger exploitative bots, range-table bots, Monte Carlo equity bots, or solver-backed GTO policies
+
+This keeps GTO work behind a stable boundary instead of wiring solver decisions directly into UI event handlers.
 
 ## Review Accuracy Principle
 

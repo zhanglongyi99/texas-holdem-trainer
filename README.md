@@ -4,6 +4,10 @@
 
 当前版本是纯静态前端，无需构建工具。由于脚本使用 ES module，请通过本地静态服务访问。
 
+## 交接文档
+
+后续开发优先阅读 [docs/HANDOFF.md](docs/HANDOFF.md)。这份文档记录当前项目状态、关键文件、测试方式、已知限制和下一步建议，用于新窗口或新协作者快速接续。
+
 ## 功能
 
 - 6 人桌 No-Limit Hold'em 练习流程
@@ -71,6 +75,8 @@ npm test
 ## 架构说明
 
 见 [docs/architecture.md](docs/architecture.md)。
+
+当前页面架构提案见 [docs/page-architecture-proposal.html](docs/page-architecture-proposal.html)。已落地的核心方向是：对局、历史手牌库、复盘、数据中心和牌桌配置分离；后续主要剩余工作是策略层抽离和 GTO / solver 接入讨论。
 
 ## 项目定位
 
