@@ -300,6 +300,7 @@ function render() {
 }
 
 function renderTable() {
+  if (!els.boardCards || !els.players) return;
   const state = app.handState;
   const hero = state?.players.find((player) => player.id === HERO_ID);
   els.boardCards.innerHTML = state?.board.length
@@ -329,6 +330,7 @@ function renderPlayer(player) {
 }
 
 function renderControls() {
+  if (!els.tablePresetLabel || !els.foldBtn) return;
   const state = app.handState;
   const legal = state ? getLegalActions(state) : { actions: [], toCall: 0 };
   const heroTurn = legal.playerId === HERO_ID && state?.handActive;
@@ -349,6 +351,7 @@ function renderControls() {
 }
 
 function renderLibrary() {
+  if (!els.handLibrary || !els.librarySearch || !els.libraryPresetFilter) return;
   const query = els.librarySearch.value.trim().toLowerCase();
   const preset = els.libraryPresetFilter.value;
   const records = app.library.filter((record) => {
@@ -376,6 +379,7 @@ function renderLibrary() {
 }
 
 function renderReview() {
+  if (!els.reviewSummary || !els.decisionReview) return;
   const record = currentRecord();
   if (!record) {
     els.reviewSummary.className = "review-summary empty-state";
@@ -410,6 +414,7 @@ function renderReview() {
 }
 
 function renderStats() {
+  if (!els.statsGrid || !els.leakReport) return;
   const stats = computeStats(app.library);
   const defs = [
     ["手数", stats.hands, "历史手牌库总数", "good"],
@@ -435,6 +440,7 @@ function renderLeaks(stats) {
 }
 
 function renderConfig() {
+  if (!els.presetCards || !els.seatCountInput) return;
   els.presetCards.innerHTML = Object.values(PRESETS).map((preset) => `
     <article class="preset-card ${app.config.id === preset.id ? "selected" : ""}">
       <strong>${preset.name}</strong>
@@ -586,6 +592,10 @@ function switchView(view) {
   els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.view === view));
 }
 
+function on(element, event, handler) {
+  if (element) element.addEventListener(event, handler);
+}
+
 function applyPreset(id) {
   app.config = { ...PRESETS[id] };
   localStorage.setItem(CONFIG_KEY, JSON.stringify(app.config));
@@ -612,29 +622,29 @@ function copyCurrentHand() {
   navigator.clipboard?.writeText(JSON.stringify(record?.history || serializeHandHistory(app.handState), null, 2));
 }
 
-els.newHandBtn.addEventListener("click", startHand);
-els.nextHandBtn.addEventListener("click", startHand);
-els.reviewHandBtn.addEventListener("click", () => switchView("review"));
-els.foldBtn.addEventListener("click", () => heroAction("fold"));
-els.checkCallBtn.addEventListener("click", () => {
+on(els.newHandBtn, "click", startHand);
+on(els.nextHandBtn, "click", startHand);
+on(els.reviewHandBtn, "click", () => switchView("review"));
+on(els.foldBtn, "click", () => heroAction("fold"));
+on(els.checkCallBtn, "click", () => {
   const legal = getLegalActions(app.handState);
   heroAction(legal.actions.includes("call") ? "call" : "check");
 });
-els.raiseBtn.addEventListener("click", () => heroAction("raise"));
-els.copyLogBtn.addEventListener("click", copyCurrentHand);
-els.raiseSize.addEventListener("input", () => {
+on(els.raiseBtn, "click", () => heroAction("raise"));
+on(els.copyLogBtn, "click", copyCurrentHand);
+on(els.raiseSize, "input", () => {
   els.raiseSizeLabel.textContent = `${els.raiseSize.value}x`;
 });
-els.resetStatsBtn.addEventListener("click", () => renderStats());
-els.clearLibraryBtn.addEventListener("click", () => {
+on(els.resetStatsBtn, "click", () => renderStats());
+on(els.clearLibraryBtn, "click", () => {
   app.library = [];
   app.selectedHandId = null;
   saveLibrary();
   render();
 });
-els.librarySearch.addEventListener("input", renderLibrary);
-els.libraryPresetFilter.addEventListener("change", renderLibrary);
-els.configForm.addEventListener("submit", saveCustomConfig);
+on(els.librarySearch, "input", renderLibrary);
+on(els.libraryPresetFilter, "change", renderLibrary);
+on(els.configForm, "submit", saveCustomConfig);
 els.tabs.forEach((tab) => tab.addEventListener("click", () => switchView(tab.dataset.view)));
 els.viewJump.forEach((button) => button.addEventListener("click", () => switchView(button.dataset.viewJump)));
 document.addEventListener("click", (event) => {
